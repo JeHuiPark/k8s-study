@@ -1,0 +1,17 @@
+# MultiStage 빌드 도커 파일 예제
+
+# Stage 1 컨테이너(애플리케이션 컴파일)
+FROM golang:1.14.1-alpine3.11 as builder
+COPY main.go ./
+RUN go build -o /go-app ./main.go
+
+# Stage 2 컨테이너 (컴파일한 바이너리를 포함한 실행용 컨테이너 생성)
+FROM alpine:3.11
+# Stage 1에서 컴파일한 결과물을 복사
+COPY --from=builder /go-app .
+ENTRYPOINT ["./go-app"]
+
+# BuildKit 등을 사용해 빌드 단계의 의존 관계를 자동으로 파악하고 빌드 단계를 병렬로 처리하는 것도 가능하다
+# https://github.com/moby/buildkit
+
+# docker image build -t sample-image:0.2 -f Dockerfile_2 .

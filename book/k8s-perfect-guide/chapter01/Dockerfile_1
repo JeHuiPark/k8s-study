@@ -1,0 +1,18 @@
+# 베이스 이미지
+FROM golang:1.14.1-alpine3.11
+
+# 호스트에 있는 main.go 파일을 컨테이너에 복사
+COPY main.go ./
+
+# 빌드 시 컨테이너 내부에서 명령어 실행
+RUN go build -o ./go-app ./main.go
+
+# 실행 계정을 nobody로 지정
+USER nobody
+
+# 컨테이너가 기동할 때 실행할 명령어
+ENTRYPOINT ["./go-app"]
+
+# 베이스 이미지에 컴파일 도구가 포함되어 이미지 사이즈가 커지는 문제가 있다
+
+# docker image build -t sample-image:0.1 -f ./Dockerfile_1 .
