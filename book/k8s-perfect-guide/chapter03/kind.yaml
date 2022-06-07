@@ -1,0 +1,16 @@
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+nodes:
+  - role: control-plane
+#    image: kindest/node:v1.18.15 # 책에서 제공하는 예제는 arm 아키텍처 미지원으로 오류 발생하여 arm 지원하는 최신버전으로 변경
+    image: kindest/node:v1.24.1
+  - role: control-plane
+    image: kindest/node:v1.24.1
+  - role: control-plane
+    image: kindest/node:v1.24.1
+  - role: worker
+    image: kindest/node:v1.24.1
+  - role: worker
+    image: kindest/node:v1.24.1
+  - role: worker
+    image: kindest/node:v1.24.1
