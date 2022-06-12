@@ -258,3 +258,165 @@ kubectl get pods
 이 기능은 **레이블과 일치하는 전체 리소스의 목록**에서 kubectl apply로 읽어들인 manifest 안에 포함되지 않는 리소스를 모두 삭제하는 구조로 동작한다.  
 때문에 `--all` 옵션을 사용하면 클러스터 리소스를 기준으로 동작하기 때문에 조심해야 한다.  
 마찬가지로 다른 디렉토리에 동일한 레이블을 가진 리소스가 있다면 그 리소스도 삭제될 수 있다
+
+## diff
+
+```shell
+kubectl apply -f sample-pod.yaml 
+kubectl set image pod sample-pod nginx-container=nginx:1.15
+kubectl diff -f sample-pod.yaml
+
+# 상태코드 확인
+echo $?
+```
+`kubectl diff` 명령어의 종료 코드는 실제 클러스터에 등록된 정보와 manifest 간에 차이가 있으면 1을 반환하고, 차이가 없으면 0을 반환한다
+
+## api-resources
+
+사용 가능한 리소스 목록 조회
+
+```shell
+kubectl api-resources
+
+# 네임스페이스에 속하는 리소스
+kubectl api-resources --namespaced=true
+
+# 네임스페이스에 속하지 않는 리소스
+kubectl api-resources --namespaced=true
+```
+
+쿠버네티스에서 취급하는 리소스는 네임스페이스 수준의 리소스와 클러스터 수준의 리소스, 두 종류가 있다.
+
+## 리소스 조회
+
+```shell
+kubectl get pods
+kubectl get pods sample-pod
+kubectl get pods -l label=val1 --show-labels
+
+# --output (json/yaml/custom-columns/jsonpath/go-template)
+kubectl get pods -o wide
+kubectl get pods -o yaml
+kubectl get pods -o yaml sample-pod
+
+# Custom Columns
+kubectl get pods -o custom-columns="NAME:{.metadata.name}, NodeIP:{.status.hostIP}, containers:{.spec.containers[].name}"
+
+# json path
+kubectl get pods sample-pod -o jsonpath="{.metadata.name}"
+
+# 배열 필터링
+kubectl get po sample-pod -o jsonpath="{.spec.containers[?(@.name == 'nginx-container')].image}"
+
+# go template
+kubectl get pods -o go-template="{{range.items}}{{.metadata.name}}:{{range .spec.containers}}{{.image}}{{end}}{{end}}"
+
+# 노드 목록 조회
+kubectl get nodes
+
+# 거의 모든 종류의 리소스 조회
+kubectl get all
+
+# 모든 리소스 조회
+kubectl get $(kubectl api-resources --namespaced=true --verbs=list -o name | tr '\n' ',' | sed -e 's|,$||g')
+
+# 리소스 상태 감시
+kubectl get pods --watch
+kubectl get pods --watch --output-watch-events
+```
+
+## 리소스 상세 정보 조회
+
+```shell
+kubectl describe pod sample-pod
+kubectl describe node minikube
+```
+
+## 컨테이너에서 명령어 실행
+
+```shell
+# 파드 내부의 컨테이너에서 /bin/ls 실행
+kubectl exec -it sample-pod -- /bin/ls
+
+# 여러 컨테이너에 존재하는 파드의 특정 컨테이너에서 /bin/ls 실행
+kubectl exec -it sample-pod -c nginx-container -- /bin/ls
+
+# 파드 내부의 컨테이너에서 /bin/bash 실행
+kubectl exec -it sample-pod -- /bin/bash
+
+# bin/bash에 인수 전달
+kubectl exec -it sample-pod -- /bin/bash -c "ls --all --classify | grep lib"
+```
+
+## 포트 포워딩
+
+```shell
+kubectl apply -f sample-pod.yaml
+kubectl port-forward sample-pod 8888:80
+curl -I localhost:8888
+
+kubectl apply -f sample-deployment.yaml
+kubectl port-forward deployment/sample-deployment 8888:80
+```
+
+## 로그 출력
+
+```shell
+kubectl logs sample-pod
+
+kubectl logs sample-pod -c nginx-container
+
+kubectl logs -f sample-pod
+
+kubectl logs --since=1h --tail=10 --timestamps=true sample-pod
+
+kubectl logs -f --selector app=nginx
+
+# 오픈 소스 Stern을 사용하면 로그를 더욱 편리하게 출력할 수 있음
+brew install stern
+
+stern sample-deployment-
+```
+
+## 컨테이너 - 로컬 머신 파일복사
+
+```shell
+kubectl cp sample-pod:etc/hostname ./hostname
+cat hostname
+
+kubectl cp hostname sample-pod:/tmp/newfile
+kubectl exec -it sample-pod -- ls /tmp
+```
+## kubectl 플러그인 관리자 krew
+kubectl은 하위 명령어를 확장할 수 있도록 플러그인을 지원한다  
+[krew install guide](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
+
+```shell
+# 플러그인 목록 확인
+kubectl plugin list
+
+kubectl krew install tree rolesum sort-manifests open-svc view-serviceaccount-kubeconfig
+```
+
+## kubectl 디버깅
+
+```shell
+kubectl -v=6 get pod
+
+kubectl -v=8 apply -f sample-pod.yaml
+```
+
+## kubectl etc tip
+
+kube-ps1은 bash나 zsh의 프롬프트에 현재 작업 중인 쿠버네티스 클러스터와 네임스페이스를 표시한다
+
+```shell
+brew install kube-ps1
+# install guide : https://github.com/jonmosco/kube-ps1
+kubeon
+kubeoff -g # 기본설정을 off로 변경
+
+# 컨테이너 환경이나 애플리케이션에 문제가 있어서 디버깅이 필요할 경우
+# 일시적으로 nginx 이미지로 웹 서버가 아닌 셸을 기동 
+kubectl run --image=nginx:1.16 --restart=Never --rm -it sample-debug --comand -- /bin/sh
+```

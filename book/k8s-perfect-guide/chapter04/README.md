@@ -92,3 +92,5 @@ flowchart TB
 RBAC(Role-Based Access Control)를 이용하여 Namespace별 클러스터 조작에 대한 권한을 구분할 수 있음
 
 ___
+
+[kubectl 예제](kubectl.md)
