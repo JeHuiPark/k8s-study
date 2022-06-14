@@ -378,3 +378,70 @@ kubectl get pods --watch
 kubectl get pods -o custom-columns="NAME:{.metadata.name}, containers:{.spec.containers[].image}"
 # 4,5 pod만 업데이트 됨 
 ```
+
+```shell
+kubectl exec -it sample-stateful-set-0 -- touch /usr/share/nginx/html/sample.html
+
+# pod 삭제
+kubectl delete po sample-stateful-set-0
+
+kubectl exec -it sample-stateful-set-0 -- ls /usr/share/nginx/html
+# 파일 유실 없음
+```
+
+- StatefulSet을 생성하면서 확보한 영구 볼륨은 StatefulSet이 삭제되어도 동시에 해제되지 않는다
+- StatefulSet이 확보한 영구 볼륨을 해제하지 않고 다시 StatefulSet을 생성한 경우 영구 볼륨 데이터 그대로 pod가 기동된다
+
+```shell
+kubectl delete statefulset sample-stateful-set
+
+kubectl get persistentvolumeclaims
+kubectl get persistentvolumes
+
+kubectl apply -f sample-stateful-set.yaml
+
+kubectl exec -it sample-stateful-set-0 -- ls /usr/share/nginx/html
+# 파일 유실 없음
+
+kubectl delete statefulset sample-stateful-set
+
+# statefulset이 확보한 영구 볼륨 해제
+kubectl delete persistentvolumeclaims www-sample-stateful-set-{0..2}
+```
+
+## Job
+Job은 컨테이너를 사용하며 한 번만 실행되는 리소스다  
+N 개의 병렬로 실행하면서 지정된 횟수의 컨테이너 실행을 보장한다
+
+pod의 정지가 정상 종료인 작업에 적합 (rsync, upload, ...)
+
+```shell
+kubectl apply -f sample-job.yaml
+kubectl get po --watch
+kubectl get jobs -o wide
+```
+
+디테일은 생략 (필요할 때 찾는걸로)
+
+## CronJob
+
+CronJob이 Job을 관리하고 Job이 파드를 관리하는 3계층 구조
+
+```mermaid
+flowchart TB
+    subgraph cronjob
+    
+      subgraph job-a
+        pod-a
+        pod-b
+      end
+      
+      subgraph job-b
+        pod-c
+        pod-d
+      end
+    
+    end
+```
+
+디테일은 생략 (필요할 때 찾는걸로)
