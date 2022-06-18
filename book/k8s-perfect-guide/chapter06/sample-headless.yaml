@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-headless # StatefulSet 의 spec.serviceName 과 동일해야 함
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: sample-app
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sample-stateful-set-headless
+spec:
+  serviceName: sample-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sample-app
+  template:
+    metadata:
+      labels:
+        app: sample-app
+    spec:
+      containers:
+        - name: nginx-container
+          image: amsy810/echo-nginx:v2.0

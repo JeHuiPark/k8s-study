@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: subdomain
+  labels:
+    app: subdomain
+spec:
+  hostname: sample-hostname
+  subdomain: sample-subdomain # HeadlessService 이름과 동일하게
+  containers:
+    - name: nginx-container
+      image: amsy810/echo-nginx:v2.0
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-subdomain
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: subdomain
