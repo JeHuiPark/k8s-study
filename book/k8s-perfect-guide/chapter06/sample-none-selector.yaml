@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-none-selector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 80
+# 셀렉터와 externalName 을 지정하지 않는다
+
+---
+
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: sample-none-selector # Service 의 metadata.name 과 같아야 함
+subsets:
+  - addresses:
+      - ip: 192.168.1.1
+      - ip: 192.168.1.2
+    ports:
+      - port: 80
