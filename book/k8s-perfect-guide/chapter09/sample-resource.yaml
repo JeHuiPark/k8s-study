@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sample-resouce
+  name: sample-resource
 spec:
   replicas: 3
   selector:

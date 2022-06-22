@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sample-pod-over-ratio.yaml
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx:1.16
+      resources:
+        # cpu min/max/ratio     => 125m/1000m/2
+        # memory min/max/ratio  => 128Mi/1Gi/2
+        requests:
+          cpu: 125m
+        limits:
+          cpu: 251m
+
+
+
