@@ -140,3 +140,114 @@ kubectl apply -f sample-pod-under-request.yaml
 #  LimitRange 에서 설정한 request/limit 비율을 초과할 경우
 kubectl apply -f sample-pod-over-ratio.yaml
 ```
+
+## QoS Class
+
+파드에는 Request/Limits 설정에 따라 자동으로 QoS Class 값이 설정되게 되어 있다.
+
+| QoS Class  | 조건                                                   | 우선순위 |
+|------------|------------------------------------------------------|------|
+| BestEffort | Request/Limits 모두 미지정                                | 3    |
+| Guaranteed | Requests/Limits 가 같고 cpu, memory 명시적 지정              | 1    |
+| Burstable  | Guaranteed를 충족하지 못하고 한 개 이상의 Request/Limits가 설정되어 있음 | 2    |
+
+QoS Class는 쿠버네티스가 컨테이너에 oom score를 설정할 때 사용된다 
+
+| QoS Class  | 조건                                                       |
+|------------|----------------------------------------------------------|
+| BestEffort | 1000                                                     |
+| Guaranteed | -998                                                     |
+| Burstable  | min(max2, 1000 - (1000*메모리의 requests) / 머신 메모리 용량), 999) |
+
+**oom score?**  
+OOM Killer에 의해 프로세스를 정지시킬 때 우선순위 값으로 -1000~1000 범위에서 설정한다  
+메모리 사용량이 노드 최댓값을 넘어 OOM Killer에 의해 컨테이너를 정지시킬 때 BestEffort, Burstable, Guaranteed 순서로 정지한다.  
+Guaranteed의 경우에는 쿠버네티스 시스템 구성요소외에 우선순위가 높은 컨테이너가 없어서 좀 더 안정적인 시행이 가능하다.
+
+## ResourceQuota
+
+리소스쿼터를 사용하여 네임스페이스 단위로 사용 가능한 리소스를 제한할 수 있다  
+_이미 생성된 리소스에는 영향을 주지 않는다_
+
+```shell
+kubectl apply -f sample-resourcequota.yaml
+kubectl describe resourcequota
+# Name:             sample-resourcequota
+# Namespace:        default
+# Resource          Used  Hard
+# --------          ----  ----
+# count/configmaps  1     10
+for i in `seq 1 10`; do kubectl create configmap conf-$i --from-literal=key1=val1;done
+# configmap/conf-1 created
+# configmap/conf-2 created
+# configmap/conf-3 created
+# configmap/conf-4 created
+# configmap/conf-5 created
+# configmap/conf-6 created
+# configmap/conf-7 created
+# configmap/conf-8 created
+# configmap/conf-9 created
+# error: failed to create configmap: configmaps "conf-10" is forbidden: exceeded quota: sample-resourcequota, requested: count/configmaps=1, used: count/configmaps=10, limited: count/configmaps=10
+```
+
+리소스 쿼터가 설정되면 제한이 걸린 항목 설정은 필수로 입력해야 한다 (cpu, memory)
+
+## HorizontalPodAutoscaler
+HorizontalPodAutoscaler(HPA)는 디플로이먼트/레플리카셋/레플리케이션 컨트롤러의 레플리카 수를 CPU 부하 등에 따라 자동으로 스케일하는 리소스다.  
+부하가 높아지면 스케일 아웃하고, 부하가 낮아지면 스케일 인된다.  
+_파드에 Resource Requests가 설정되어 있지 않은 경우에는 동작하지 않는다._
+
+- 일정 시간마다 오토 스케일링 여부를 확인 (필요한 레플리카 수 계산)
+  - ceil(sum(파드의 현재 cpu 사용률) / targetAverageUtilization)
+- 일정 시간마다 스케일 아웃 
+  - avg(파드의 현재 cpu 사용률) / targetAverageUtilization > 1.1
+- 일정 시간마다 스케일 인
+  - avg(파드의 현재 cpu 사용률) / targetAverageUtilization < 0.9
+
+쿠버네티스 1.18 부터는 `spec.behavior` 속성을 이용해 오토스케일링 동작을 상세하게 정의할 수 있음
+
+> CPU 이외에도 Custom Metrics를 사용하여 임의의 지표에 따라 오토 스케일링을 할 수 있다
+
+
+```shell
+# 테스트를 위해서 쿠버네티스에 메트릭 서버를 설치해줘야 한다
+minikube addons enable metrics-server
+
+kubectl apply -f sample-hpa.yaml
+kubectl apply -f sample-hpa-deployment.yaml
+
+# 테스트를 위해 포트 포워딩
+kubectl port-forward service/lb 8080:8080
+
+# hpa 상태 감시
+kubectl get hpa sample-hpa --watch
+
+# apache bench 를 이용하여 부하 생성
+ab -n 100000 -c 200 http://localhost:8080/
+
+# cpu 메트릭 수집이 안되는 현상 발견 (오토 스케일 동작 x)
+kubectl top po -A
+kubectl get --raw /apis/metrics.k8s.io/v1beta1/namespaces/default/pods | jq ''
+
+# 현재 사용중인 minikube 버전에서 알려진 버그로 보임
+# ref link: https://github.com/kubernetes/minikube/issues/13898
+minikube stop 
+
+# 임시해결
+minikube start --extra-config=kubelet.housekeeping-interval=10s
+
+# cpu 메트릭 수집 확인 (10s interval)
+kubectl top po -A
+
+# apache bench 를 이용하여 부하 생성
+# sample-hpa   Deployment/sample-hpa-deployment   0%/50%    1         10        1          30m
+# sample-hpa   Deployment/sample-hpa-deployment   0%/50%    1         10        1          31m
+# sample-hpa   Deployment/sample-hpa-deployment   100%/50%   1         10        2          31m
+# sample-hpa   Deployment/sample-hpa-deployment   50%/50%    1         10        2          32m
+# sample-hpa   Deployment/sample-hpa-deployment   52%/50%    1         10        2          32m
+# sample-hpa   Deployment/sample-hpa-deployment   50%/50%    1         10        2          32m
+```
+
+## VerticalPodAutoscaler
+
+파드에 할당하는 cpu/memory 리소스를 스케일링
