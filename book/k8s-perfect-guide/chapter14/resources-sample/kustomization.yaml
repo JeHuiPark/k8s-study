@@ -1,0 +1,3 @@
+resources:
+  - sample-deployment.yaml
+  - sample-lb.yaml

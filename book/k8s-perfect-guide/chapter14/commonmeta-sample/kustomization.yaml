@@ -1,0 +1,7 @@
+commonLabels:
+  label1: label1-val
+commonAnnotations:
+  annotations1: annotation1-val
+resources:
+  - sample-deployment.yaml
+  - sample-lb.yaml

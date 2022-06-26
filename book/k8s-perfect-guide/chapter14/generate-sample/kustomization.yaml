@@ -1,0 +1,9 @@
+resources:
+  - ./sample-deployment.yaml
+configMapGenerator:
+  - name: generated-configmap
+    behavior: create
+    literals:
+      - KE1=VAL1
+    files:
+      - sample.txt
