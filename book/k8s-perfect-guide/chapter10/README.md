@@ -248,3 +248,8 @@ prestop은 종료 요청이 온 후 실행된다
 
 kubectl 명령어로 파드를 삭제할 때 `--grace-preiod` 옵션을 사용하여 파드의 terminationGracePeriodSecond 를 변경하여 삭제할 수 있다
 
+## References
+
+- https://github.com/kubernetes/api/blob/182afbd21219b0523977b2a71c468beac2496e2c/core/v1/types.go#L2458-L2478
+- https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+- https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy
